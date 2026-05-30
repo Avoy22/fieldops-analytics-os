@@ -77,3 +77,26 @@ Generate data:
 
 ```bash
 python src/generate_data.py
+
+## v0.4 — Streamlit Executive Dashboard
+
+This version adds an interactive Streamlit dashboard for executive marketplace analytics.
+
+### Dashboard Sections
+
+- Executive KPI Overview
+- Monthly Revenue Trend
+- Work Order Status Breakdown
+- Revenue by Category
+- Top Buyers
+- Payment Delay Risk
+- Top Locations
+- Business Insights
+- Dashboard Data Tables
+
+### How to Run the Dashboard
+
+Generate synthetic data:
+
+```bash
+python src/generate_data.py

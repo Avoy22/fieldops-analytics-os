@@ -1,147 +1,276 @@
 # FieldOps Analytics OS
 
-FieldOps Analytics OS is a marketplace finance and work-order analytics project inspired by field-service platforms. It analyzes synthetic work-order data to track revenue, provider payouts, buyer activity, payment delays, marketplace health, and operational performance.
+**Marketplace Finance, Operations, and Business Intelligence Case Study**
 
-## Project Goal
+FieldOps Analytics OS is a portfolio-ready analytics project that simulates a field-service marketplace, builds a local SQLite analytics database, runs a library of SQL analysis queries, and presents executive insights in a Streamlit dashboard.
 
-The goal of this project is to simulate the kind of analytics work performed by data analysts, business intelligence analysts, and finance analytics teams inside marketplace companies.
+The project is designed for **Data Analyst**, **Business Intelligence Analyst**, **Finance Analyst**, and **Marketplace Operations Analyst** roles. It demonstrates end-to-end analytical thinking: dataset design, data pipeline execution, SQL analysis, KPI development, dashboard storytelling, and business recommendation writing.
 
-This project focuses on:
+## Business Problem
 
-- Work order analytics
-- Revenue and finance KPIs
-- Provider payout analysis
-- Buyer/customer performance
-- Payment delay tracking
-- Marketplace health metrics
-- SQL-based business analysis
-- Interactive dashboard development
+Field-service marketplaces need to balance growth, revenue quality, provider payouts, buyer concentration, and payment risk. Leadership needs clear answers to questions such as:
 
-## Business Context
+- How much marketplace volume is being generated?
+- How much platform revenue is retained after provider payouts?
+- Is the marketplace take rate stable over time and across categories?
+- Which buyers and service categories drive the most financial value?
+- Is revenue overly concentrated in a small number of buyer accounts?
+- Which buyers create late-payment or collections risk?
+- Are work orders being completed successfully, or are cancellations rising?
 
-A field-service marketplace connects companies that need on-site work with technicians or service providers who complete those jobs.
+## Project Objective
 
-Examples of marketplace questions this project answers:
+Build a complete business intelligence workflow that turns synthetic marketplace transactions into decision-ready reporting:
 
-- How much revenue is the marketplace generating?
-- Which work categories create the most revenue?
-- Which buyers spend the most?
-- Which providers complete the most jobs?
-- What percentage of work orders are completed, cancelled, or delayed?
-- How long does it take for payments to be completed?
-- Which locations have strong or weak marketplace performance?
+- Generate realistic synthetic marketplace data.
+- Load the data into a relational SQLite database.
+- Run reusable SQL analysis files.
+- Export query outputs for reporting and review.
+- Build an interactive Streamlit executive dashboard.
+- Document the business case, data model, SQL layer, dashboard, and insights.
 
-## Planned Tech Stack
+## Dashboard Preview
 
-- Python
-- Pandas
-- NumPy
-- Faker
-- SQL
-- SQLite first, PostgreSQL later
-- Streamlit
-- Plotly
-- GitHub
+Add the following screenshots after running the dashboard locally:
 
-## Project Structure
+### Executive Dashboard
+
+![Executive Dashboard](assets/screenshots/executive-dashboard.png)
+
+### Finance Analytics Deep Dive
+
+![Finance Deep Dive](assets/screenshots/finance-deep-dive.png)
+
+### Buyer Revenue Concentration
+
+![Buyer Concentration](assets/screenshots/buyer-concentration.png)
+
+### Payment Risk Analysis
+
+![Payment Risk](assets/screenshots/payment-risk.png)
+
+## Tech Stack
+
+| Layer | Tools |
+| --- | --- |
+| Programming | Python |
+| Data generation | Faker, NumPy, pandas |
+| Data storage | SQLite |
+| Analysis | SQL, pandas |
+| Dashboard | Streamlit |
+| Visualization | Plotly |
+| Documentation | Markdown |
+| Version control | Git, GitHub |
+
+## Architecture
 
 ```text
 fieldops-analytics-os/
-├── data/
-│   ├── raw/
-│   └── processed/
-├── src/
-│   ├── generate_data.py
-│   └── config.py
-├── sql/
-├── dashboard/
-├── notebooks/
-├── reports/
-└── docs/
+|-- dashboard/
+|   `-- app.py
+|-- data/
+|   |-- raw/
+|   `-- processed/
+|-- docs/
+|   |-- case_study.md
+|   |-- data_model.md
+|   |-- sql_analysis_guide.md
+|   |-- dashboard_guide.md
+|   |-- business_insights.md
+|   `-- project_architecture.md
+|-- reports/
+|   |-- finance_insights.md
+|   `-- query_outputs/
+|-- sql/
+|   |-- 01_revenue_kpis.sql
+|   |-- 02_work_order_health.sql
+|   |-- 03_top_buyers.sql
+|   |-- 04_provider_performance.sql
+|   |-- 05_category_revenue.sql
+|   |-- 06_location_performance.sql
+|   |-- 07_payment_delay.sql
+|   |-- 08_marketplace_health.sql
+|   |-- 09_finance_monthly_deep_dive.sql
+|   |-- 10_take_rate_trend.sql
+|   |-- 11_buyer_revenue_concentration.sql
+|   |-- 12_payment_risk_summary.sql
+|   `-- 13_category_finance_performance.sql
+|-- src/
+|   |-- generate_data.py
+|   |-- load_to_sqlite.py
+|   `-- run_sql_queries.py
+|-- README.md
+`-- requirements.txt
+```
 
-## v0.3 — SQLite Loader and SQL Analytics
+## Dataset Design
 
-This version adds a SQLite analytics layer.
+The project uses a synthetic relational dataset for a two-sided field-service marketplace.
 
-### New Features
+| Table | Purpose |
+| --- | --- |
+| `buyers` | Companies purchasing field-service work. |
+| `providers` | Service providers completing work orders. |
+| `work_orders` | Core marketplace transactions, including category, status, amount, fee, payout, and take rate. |
+| `payments` | Payment status, due dates, paid dates, delays, and payment value. |
+| `reviews` | Buyer feedback and rehire intent for completed work. |
+| `support_tickets` | Operational support issues linked to buyers and work orders. |
 
-- Loads synthetic CSV data into a SQLite database
-- Creates database tables for buyers, providers, work orders, payments, reviews, and support tickets
-- Adds indexes for common analysis fields
-- Adds SQL queries for marketplace finance and operational analysis
-- Exports SQL query results into report CSV files
+The seeded sample dataset generates:
 
-### How to Run
+- 500 buyers
+- 1,500 providers
+- 10,000 work orders
+- Payment records for completed or approved work orders
+- Reviews and support tickets for operational context
 
-Generate data:
+## KPI List
+
+| KPI | Business meaning |
+| --- | --- |
+| Gross Work Order Value | Total marketplace transaction value before fees and payouts. |
+| Platform Revenue | Revenue retained by the marketplace through platform fees. |
+| Provider Payout | Amount paid out to service providers. |
+| Take Rate | Platform revenue divided by gross work order value. |
+| Average Work Order Value | Average dollar value per work order. |
+| Success Rate | Share of work orders completed or approved. |
+| Cancellation Rate | Share of work orders cancelled. |
+| Buyer Revenue Share | Share of platform revenue generated by each buyer. |
+| Late Payment Rate | Share of payments marked late. |
+| Average Payment Delay | Average days paid after the due date. |
+
+## SQL Analysis Library
+
+| File | Analysis |
+| --- | --- |
+| `sql/01_revenue_kpis.sql` | Monthly revenue, platform fees, payouts, AOV, and take rate. |
+| `sql/02_work_order_health.sql` | Completion, approval, cancellation, pending, and assignment status health. |
+| `sql/03_top_buyers.sql` | Top buyer accounts by gross value and platform revenue. |
+| `sql/04_provider_performance.sql` | Provider workload, payout, completion, cancellation, and rating performance. |
+| `sql/05_category_revenue.sql` | Revenue and payout performance by service category. |
+| `sql/06_location_performance.sql` | Marketplace performance by city, state, and country. |
+| `sql/07_payment_delay.sql` | Buyer-level payment status and late-payment analysis. |
+| `sql/08_marketplace_health.sql` | Monthly health view combining work orders, payments, reviews, and support tickets. |
+| `sql/09_finance_monthly_deep_dive.sql` | Monthly finance performance and take rate analysis. |
+| `sql/10_take_rate_trend.sql` | Take rate trend by month and category. |
+| `sql/11_buyer_revenue_concentration.sql` | Buyer concentration and revenue share ranking. |
+| `sql/12_payment_risk_summary.sql` | Buyer payment risk levels using delay and late-payment metrics. |
+| `sql/13_category_finance_performance.sql` | Category-level finance performance, payout rate, AOV, and success rate. |
+
+## Dashboard Sections
+
+The Streamlit dashboard includes:
+
+- Executive KPI cards for work orders, gross value, platform revenue, payout, take rate, success rate, cancellation rate, and payment delay.
+- Monthly revenue trend for gross work order value, platform revenue, and provider payout.
+- Work order status breakdown.
+- Revenue by service category.
+- Buyer concentration chart.
+- Payment delay risk chart.
+- Top location performance.
+- Interactive data tables.
+- Business insights narrative.
+- Finance deep dive for monthly finance performance, take rate trends, buyer concentration, payment risk, and category finance performance.
+
+## Example Business Insights
+
+Using the current seeded sample output:
+
+- The marketplace processed 10,000 work orders.
+- Gross work order value is approximately $13.3M.
+- Platform revenue is approximately $2.3M, with an overall take rate near 17%.
+- Provider payout is approximately $11.1M.
+- Work order success rate is 62.45%, while cancellation rate is 8.79%.
+- Roofing is the highest platform revenue category in the current sample.
+- Buyer concentration is distributed across many accounts, with the largest buyer under 1% of platform revenue.
+- Several buyers show high payment-delay risk and should be reviewed for credit or collections follow-up.
+
+Because the data is synthetic and generated with a fixed seed, these insights are reproducible unless the generator assumptions are changed.
+
+## Documentation
+
+| Document | Purpose |
+| --- | --- |
+| [Case Study](docs/case_study.md) | Business problem, objective, approach, deliverables, and role alignment. |
+| [Data Model](docs/data_model.md) | Table design, relationships, and analytical grain. |
+| [SQL Analysis Guide](docs/sql_analysis_guide.md) | Query library and business questions answered by each SQL file. |
+| [Dashboard Guide](docs/dashboard_guide.md) | Dashboard sections, screenshot plan, and user workflow. |
+| [Business Insights](docs/business_insights.md) | KPI interpretation, findings, recommendations, and analyst talking points. |
+| [Project Architecture](docs/project_architecture.md) | Pipeline flow, folder structure, and execution sequence. |
+
+## How to Run Locally
+
+1. Clone the repository and open the project folder.
+
+2. Create and activate a virtual environment.
+
+```bash
+python -m venv .venv
+```
+
+Windows PowerShell:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+macOS or Linux:
+
+```bash
+source .venv/bin/activate
+```
+
+3. Install dependencies.
+
+```bash
+pip install -r requirements.txt
+```
+
+4. Generate synthetic data.
 
 ```bash
 python src/generate_data.py
+```
 
-## v0.4 — Streamlit Executive Dashboard
-
-This version adds an interactive Streamlit dashboard for executive marketplace analytics.
-
-### Dashboard Sections
-
-- Executive KPI Overview
-- Monthly Revenue Trend
-- Work Order Status Breakdown
-- Revenue by Category
-- Top Buyers
-- Payment Delay Risk
-- Top Locations
-- Business Insights
-- Dashboard Data Tables
-
-### How to Run the Dashboard
-
-Generate synthetic data:
+5. Load data into SQLite.
 
 ```bash
-python src/generate_data.py
-
-## v0.5 — Finance Analytics Deep Dive
-
-This version adds a deeper finance analytics layer to FieldOps Analytics OS.
-
-### New Finance Features
-
-- Monthly finance performance
-- Gross Work Order Value trend
-- Platform revenue trend
-- Provider payout trend
-- Take rate trend
-- Average work order value trend
-- Buyer revenue concentration
-- Top buyers by platform revenue
-- Category finance performance
-- Payment delay risk analysis
-- Finance insights report
-
-### Finance KPIs
-
-- Gross Work Order Value
-- Platform Revenue
-- Provider Payout
-- Take Rate
-- Average Work Order Value
-- Buyer Revenue Share
-- Payment Delay
-- Late Payment Rate
-
-### New SQL Queries
-
-- `09_finance_monthly_deep_dive.sql`
-- `10_take_rate_trend.sql`
-- `11_buyer_revenue_concentration.sql`
-- `12_payment_risk_summary.sql`
-- `13_category_finance_performance.sql`
-
-### Run the Project
-
-```bash
-python src/generate_data.py
 python src/load_to_sqlite.py
+```
+
+6. Run SQL analyses and export CSV outputs.
+
+```bash
 python src/run_sql_queries.py
+```
+
+7. Launch the Streamlit dashboard.
+
+```bash
 streamlit run dashboard/app.py
+```
+
+## Version Roadmap
+
+| Version | Focus |
+| --- | --- |
+| v0.1 | Project setup and initial folder structure. |
+| v0.2 | Synthetic marketplace data generation. |
+| v0.3 | SQLite loading and relational analytics database. |
+| v0.4 | SQL analysis library and exported query outputs. |
+| v0.5 | Streamlit dashboard and finance analytics deep dive. |
+| v0.6 | Business intelligence case study and documentation upgrade. |
+| v0.7 | Dashboard screenshots, polish, and final portfolio presentation. |
+| v1.0 | Portfolio-ready release with complete visuals, documentation, and optional deployment notes. |
+
+## Portfolio Value
+
+This project shows the ability to:
+
+- Design a realistic business analytics dataset.
+- Build a repeatable Python-to-SQLite pipeline.
+- Write business-focused SQL queries.
+- Translate metrics into executive-ready dashboard views.
+- Analyze marketplace revenue quality, concentration risk, payment risk, and operations health.
+- Communicate findings clearly for business stakeholders.
+

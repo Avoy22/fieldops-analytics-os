@@ -18,6 +18,7 @@ import streamlit as st
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DB_PATH = PROJECT_ROOT / "data" / "processed" / "fieldops.db"
+SQL_DIR = PROJECT_ROOT / "sql"
 
 REQUIRED_TABLES = {
     "buyers",
@@ -88,6 +89,11 @@ def read_sql(query: str) -> pd.DataFrame:
     """Read a SQL query from the FieldOps SQLite database."""
     with sqlite3.connect(DB_PATH) as connection:
         return pd.read_sql_query(query, connection)
+
+
+def read_sql_file(filename: str) -> str:
+    """Read a SQL file from the project sql folder."""
+    return (SQL_DIR / filename).read_text(encoding="utf-8")
 
 
 @st.cache_data(show_spinner=False)
@@ -275,6 +281,31 @@ def load_location_performance() -> pd.DataFrame:
     LIMIT 15;
     """
     return read_sql(query)
+
+
+@st.cache_data(show_spinner=False)
+def load_finance_monthly_deep_dive() -> pd.DataFrame:
+    return read_sql(read_sql_file("09_finance_monthly_deep_dive.sql"))
+
+
+@st.cache_data(show_spinner=False)
+def load_take_rate_trend() -> pd.DataFrame:
+    return read_sql(read_sql_file("10_take_rate_trend.sql"))
+
+
+@st.cache_data(show_spinner=False)
+def load_buyer_revenue_concentration() -> pd.DataFrame:
+    return read_sql(read_sql_file("11_buyer_revenue_concentration.sql"))
+
+
+@st.cache_data(show_spinner=False)
+def load_payment_risk_summary() -> pd.DataFrame:
+    return read_sql(read_sql_file("12_payment_risk_summary.sql"))
+
+
+@st.cache_data(show_spinner=False)
+def load_category_finance_performance() -> pd.DataFrame:
+    return read_sql(read_sql_file("13_category_finance_performance.sql"))
 
 
 def apply_chart_style(fig):
@@ -524,6 +555,223 @@ def render_business_insights() -> None:
     )
 
 
+def render_finance_deep_dive() -> None:
+    monthly_finance = load_finance_monthly_deep_dive()
+    take_rate_trend = load_take_rate_trend()
+    buyer_concentration = load_buyer_revenue_concentration()
+    payment_risk = load_payment_risk_summary()
+    category_finance = load_category_finance_performance()
+
+    if (
+        monthly_finance.empty
+        or buyer_concentration.empty
+        or payment_risk.empty
+        or category_finance.empty
+    ):
+        st.warning("Finance deep dive data is not available yet.")
+        return
+
+    latest_month = monthly_finance.iloc[-1]
+    previous_month = monthly_finance.iloc[-2] if len(monthly_finance) > 1 else None
+    top_buyer = buyer_concentration.iloc[0]
+    top_category = category_finance.iloc[0]
+    riskiest_buyer = payment_risk.iloc[0]
+
+    if previous_month is not None and previous_month["platform_revenue"] != 0:
+        platform_revenue_change = (
+            (latest_month["platform_revenue"] - previous_month["platform_revenue"])
+            * 100.0
+            / previous_month["platform_revenue"]
+        )
+        platform_revenue_trend = f"{platform_revenue_change:+.1f}% month over month"
+    else:
+        platform_revenue_trend = "not enough month history"
+
+    top_5_share = buyer_concentration.head(5)["revenue_share_pct"].sum()
+    top_10_share = buyer_concentration.head(10)["revenue_share_pct"].sum()
+    high_risk_buyers = payment_risk[payment_risk["payment_risk_level"] == "High Risk"]
+
+    st.header("Finance Analytics Deep Dive")
+    st.caption("v0.5 finance view for revenue quality, monetization, concentration, and payment risk")
+
+    kpi_cols = st.columns(4)
+    kpi_cols[0].metric(
+        "Latest Platform Revenue",
+        format_currency(latest_month["platform_revenue"]),
+        platform_revenue_trend,
+    )
+    kpi_cols[1].metric("Latest Take Rate", format_percent(latest_month["take_rate_pct"]))
+    kpi_cols[2].metric("Top 5 Buyer Share", format_percent(top_5_share))
+    kpi_cols[3].metric("High Risk Buyers", f"{len(high_risk_buyers):,}")
+
+    concentration_cols = st.columns(4)
+    concentration_cols[0].metric("Largest Buyer Share", format_percent(top_buyer["revenue_share_pct"]))
+    concentration_cols[1].metric("Top 10 Buyer Share", format_percent(top_10_share))
+    concentration_cols[2].metric("Top Buyer Revenue", format_currency(top_buyer["platform_revenue"]))
+    concentration_cols[3].metric(
+        "Avg Payment Delay",
+        format_days(payment_risk["average_payment_delay_days"].mean()),
+    )
+
+    st.subheader("Monthly Finance Performance")
+    finance_chart = px.line(
+        monthly_finance,
+        x="month",
+        y=["gross_work_order_value", "platform_revenue", "provider_payout"],
+        markers=True,
+        title="Monthly Gross Work Order Value, Platform Revenue, and Provider Payout",
+        labels={
+            "month": "Month",
+            "value": "Amount",
+            "variable": "Metric",
+        },
+    )
+    finance_chart.update_yaxes(tickprefix="$", separatethousands=True)
+    st.plotly_chart(apply_chart_style(finance_chart), use_container_width=True)
+
+    left_col, right_col = st.columns(2)
+
+    with left_col:
+        st.subheader("Take Rate Trend")
+        take_rate_chart = px.line(
+            take_rate_trend,
+            x="month",
+            y="take_rate_pct",
+            color="category",
+            markers=True,
+            title="Monthly Take Rate by Category",
+            labels={
+                "month": "Month",
+                "take_rate_pct": "Take Rate",
+                "category": "Category",
+            },
+        )
+        take_rate_chart.update_yaxes(ticksuffix="%")
+        st.plotly_chart(apply_chart_style(take_rate_chart), use_container_width=True)
+
+    with right_col:
+        st.subheader("Average Work Order Value")
+        aov_chart = px.line(
+            monthly_finance,
+            x="month",
+            y="average_work_order_value",
+            markers=True,
+            title="Monthly Average Work Order Value",
+            labels={
+                "month": "Month",
+                "average_work_order_value": "Average Work Order Value",
+            },
+        )
+        aov_chart.update_yaxes(tickprefix="$", separatethousands=True)
+        st.plotly_chart(apply_chart_style(aov_chart), use_container_width=True)
+
+    left_col, right_col = st.columns(2)
+
+    with left_col:
+        st.subheader("Top Buyers by Platform Revenue")
+        buyer_chart = px.bar(
+            buyer_concentration.head(10).sort_values("platform_revenue"),
+            x="platform_revenue",
+            y="company_name",
+            color="industry",
+            orientation="h",
+            title="Top 10 Buyers by Platform Revenue",
+            labels={
+                "platform_revenue": "Platform Revenue",
+                "company_name": "Buyer",
+                "industry": "Industry",
+            },
+        )
+        buyer_chart.update_xaxes(tickprefix="$", separatethousands=True)
+        st.plotly_chart(apply_chart_style(buyer_chart), use_container_width=True)
+
+    with right_col:
+        st.subheader("Category Finance Performance")
+        category_chart = px.bar(
+            category_finance.sort_values("platform_revenue", ascending=False),
+            x="category",
+            y="platform_revenue",
+            color="take_rate_pct",
+            title="Platform Revenue by Category",
+            labels={
+                "category": "Category",
+                "platform_revenue": "Platform Revenue",
+                "take_rate_pct": "Take Rate",
+            },
+        )
+        category_chart.update_yaxes(tickprefix="$", separatethousands=True)
+        st.plotly_chart(apply_chart_style(category_chart), use_container_width=True)
+
+    st.subheader("Payment Delay Risk")
+    payment_chart = px.bar(
+        payment_risk.head(15).sort_values("average_payment_delay_days"),
+        x="average_payment_delay_days",
+        y="company_name",
+        color="payment_risk_level",
+        orientation="h",
+        title="Payment Delay Risk by Buyer",
+        labels={
+            "average_payment_delay_days": "Average Days After Due Date",
+            "company_name": "Buyer",
+            "payment_risk_level": "Risk Level",
+        },
+    )
+    st.plotly_chart(apply_chart_style(payment_chart), use_container_width=True)
+
+    st.subheader("Finance Analyst Notes")
+    st.markdown(
+        f"""
+        **Revenue quality:** Latest month platform revenue was
+        **{format_currency(latest_month['platform_revenue'])}**, with a
+        **{format_percent(latest_month['take_rate_pct'])}** take rate. The month-over-month platform
+        revenue trend is **{platform_revenue_trend}**, which should be reviewed alongside gross work
+        order value to separate pricing changes from true marketplace growth.
+
+        **Buyer concentration:** **{top_buyer['company_name']}** is the largest buyer by platform
+        revenue and represents **{format_percent(top_buyer['revenue_share_pct'])}** of total platform
+        revenue. The top 5 buyers represent **{format_percent(top_5_share)}**, so account health and
+        renewal risk should be part of the monthly finance review.
+
+        **Category mix:** **{top_category['category']}** is the leading category by platform revenue at
+        **{format_currency(top_category['platform_revenue'])}**. Its take rate is
+        **{format_percent(top_category['take_rate_pct'])}**, making it a useful benchmark for pricing
+        and service-line expansion.
+
+        **Collections risk:** **{riskiest_buyer['company_name']}** has the highest average payment
+        delay among buyers with at least three payments. This buyer combines
+        **{format_currency(riskiest_buyer['platform_revenue'])}** in platform revenue with a
+        **{format_percent(riskiest_buyer['late_payment_rate_pct'])}** late payment rate, making it a
+        priority for credit or collections follow-up.
+        """
+    )
+
+    st.subheader("Finance Data Tables")
+    tabs = st.tabs(
+        [
+            "Monthly Finance",
+            "Take Rate Trend",
+            "Buyer Concentration",
+            "Payment Risk",
+            "Category Finance",
+        ]
+    )
+
+    with tabs[0]:
+        st.dataframe(monthly_finance, use_container_width=True, hide_index=True)
+
+    with tabs[1]:
+        st.dataframe(take_rate_trend, use_container_width=True, hide_index=True)
+
+    with tabs[2]:
+        st.dataframe(buyer_concentration, use_container_width=True, hide_index=True)
+
+    with tabs[3]:
+        st.dataframe(payment_risk, use_container_width=True, hide_index=True)
+
+    with tabs[4]:
+        st.dataframe(category_finance, use_container_width=True, hide_index=True)
+
+
 def main() -> None:
     validate_database()
     render_header()
@@ -539,6 +787,9 @@ def main() -> None:
 
     st.divider()
     render_business_insights()
+
+    st.divider()
+    render_finance_deep_dive()
 
 
 if __name__ == "__main__":

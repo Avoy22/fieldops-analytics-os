@@ -100,3 +100,48 @@ Generate synthetic data:
 
 ```bash
 python src/generate_data.py
+
+## v0.5 — Finance Analytics Deep Dive
+
+This version adds a deeper finance analytics layer to FieldOps Analytics OS.
+
+### New Finance Features
+
+- Monthly finance performance
+- Gross Work Order Value trend
+- Platform revenue trend
+- Provider payout trend
+- Take rate trend
+- Average work order value trend
+- Buyer revenue concentration
+- Top buyers by platform revenue
+- Category finance performance
+- Payment delay risk analysis
+- Finance insights report
+
+### Finance KPIs
+
+- Gross Work Order Value
+- Platform Revenue
+- Provider Payout
+- Take Rate
+- Average Work Order Value
+- Buyer Revenue Share
+- Payment Delay
+- Late Payment Rate
+
+### New SQL Queries
+
+- `09_finance_monthly_deep_dive.sql`
+- `10_take_rate_trend.sql`
+- `11_buyer_revenue_concentration.sql`
+- `12_payment_risk_summary.sql`
+- `13_category_finance_performance.sql`
+
+### Run the Project
+
+```bash
+python src/generate_data.py
+python src/load_to_sqlite.py
+python src/run_sql_queries.py
+streamlit run dashboard/app.py

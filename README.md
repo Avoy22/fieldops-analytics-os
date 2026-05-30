@@ -58,3 +58,22 @@ fieldops-analytics-os/
 ├── notebooks/
 ├── reports/
 └── docs/
+
+## v0.3 — SQLite Loader and SQL Analytics
+
+This version adds a SQLite analytics layer.
+
+### New Features
+
+- Loads synthetic CSV data into a SQLite database
+- Creates database tables for buyers, providers, work orders, payments, reviews, and support tickets
+- Adds indexes for common analysis fields
+- Adds SQL queries for marketplace finance and operational analysis
+- Exports SQL query results into report CSV files
+
+### How to Run
+
+Generate data:
+
+```bash
+python src/generate_data.py

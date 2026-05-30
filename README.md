@@ -33,6 +33,10 @@ Build a complete business intelligence workflow that turns synthetic marketplace
 
 Add the following screenshots after running the dashboard locally:
 
+### Interactive Dashboard
+
+![Interactive Dashboard](assets/screenshots/interactive-dashboard.png)
+
 ### Executive Dashboard
 
 ![Executive Dashboard](assets/screenshots/executive-dashboard.png)
@@ -76,6 +80,7 @@ fieldops-analytics-os/
 |   |-- data_model.md
 |   |-- sql_analysis_guide.md
 |   |-- dashboard_guide.md
+|   |-- dashboard_ux_notes.md
 |   |-- business_insights.md
 |   `-- project_architecture.md
 |-- reports/
@@ -161,6 +166,11 @@ The seeded sample dataset generates:
 
 The Streamlit dashboard includes:
 
+- Interactive filtered dashboard section with sidebar filters for created date range, service category, work order status, buyer industry, and country.
+- Filtered KPI cards for work orders, gross value, platform revenue, payout, take rate, success rate, cancellation rate, and payment delay.
+- Filtered charts for monthly revenue trend, status breakdown, platform revenue by category, and top buyers by platform revenue.
+- CSV export for the active filtered dataset.
+- Metric glossary explaining KPI definitions.
 - Executive KPI cards for work orders, gross value, platform revenue, payout, take rate, success rate, cancellation rate, and payment delay.
 - Monthly revenue trend for gross work order value, platform revenue, and provider payout.
 - Work order status breakdown.
@@ -195,6 +205,7 @@ Because the data is synthetic and generated with a fixed seed, these insights ar
 | [Data Model](docs/data_model.md) | Table design, relationships, and analytical grain. |
 | [SQL Analysis Guide](docs/sql_analysis_guide.md) | Query library and business questions answered by each SQL file. |
 | [Dashboard Guide](docs/dashboard_guide.md) | Dashboard sections, screenshot plan, and user workflow. |
+| [Dashboard UX Notes](docs/dashboard_ux_notes.md) | v0.7 filter, export, glossary, and screenshot notes. |
 | [Business Insights](docs/business_insights.md) | KPI interpretation, findings, recommendations, and analyst talking points. |
 | [Project Architecture](docs/project_architecture.md) | Pipeline flow, folder structure, and execution sequence. |
 
@@ -260,8 +271,12 @@ streamlit run dashboard/app.py
 | v0.4 | SQL analysis library and exported query outputs. |
 | v0.5 | Streamlit dashboard and finance analytics deep dive. |
 | v0.6 | Business intelligence case study and documentation upgrade. |
-| v0.7 | Dashboard screenshots, polish, and final portfolio presentation. |
+| v0.7 | Dashboard UX, sidebar filters, CSV export, metric glossary, and portfolio polish. |
 | v1.0 | Portfolio-ready release with complete visuals, documentation, and optional deployment notes. |
+
+## v0.7 Notes
+
+v0.7 adds an interactive dashboard section near the top of the Streamlit app. It joins `work_orders`, `buyers`, and `payments` from SQLite, lets the viewer filter the dataset from the sidebar, refreshes KPI cards and charts based on the active selection, and exports the filtered rows as CSV.
 
 ## Portfolio Value
 

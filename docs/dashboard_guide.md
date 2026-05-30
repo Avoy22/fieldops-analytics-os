@@ -48,6 +48,42 @@ python src/run_sql_queries.py
 
 Introduces the dashboard as an executive marketplace finance and field-service operations view.
 
+### Interactive Dashboard
+
+The v0.7 interactive section appears near the top of the app and responds to sidebar filters. It is built from a joined SQLite dataset using:
+
+- `work_orders`
+- `buyers`
+- `payments`
+
+The section includes filtered KPI cards, filtered charts, a CSV export button, and a metric glossary.
+
+Sidebar filters:
+
+- Created date range
+- Service category
+- Work order status
+- Buyer industry
+- Country
+
+Filtered KPI cards:
+
+- Filtered Work Orders
+- Gross Work Order Value
+- Platform Revenue
+- Provider Payout
+- Take Rate
+- Success Rate
+- Cancellation Rate
+- Average Payment Delay
+
+Filtered charts:
+
+- Monthly revenue trend
+- Status breakdown
+- Platform revenue by category
+- Top buyers by platform revenue
+
 ### KPI Cards
 
 Displays:
@@ -133,6 +169,7 @@ Capture these images manually after the dashboard is running:
 
 | Screenshot | Suggested dashboard area |
 | --- | --- |
+| `assets/screenshots/interactive-dashboard.png` | Top interactive dashboard with sidebar filters, filtered KPI cards, and revenue trend. |
 | `assets/screenshots/executive-dashboard.png` | Top of dashboard with KPI cards and revenue trend. |
 | `assets/screenshots/finance-deep-dive.png` | Finance Analytics Deep Dive header, KPI cards, and finance chart. |
 | `assets/screenshots/buyer-concentration.png` | Buyer Concentration chart or Top Buyers by Platform Revenue chart. |
@@ -143,6 +180,9 @@ Recommended screenshot width: 1440px or wider for clean GitHub rendering.
 ## Dashboard Review Checklist
 
 - Dashboard launches with `streamlit run dashboard/app.py`.
+- Sidebar filters update the interactive KPI cards and charts.
+- CSV export downloads the active filtered dataset.
+- Metric glossary opens correctly.
 - KPI cards load without database errors.
 - Plotly charts render correctly.
 - Finance deep dive section appears below the main executive dashboard.

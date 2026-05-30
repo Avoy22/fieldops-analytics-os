@@ -58,6 +58,11 @@ def format_days(value: float | int | None) -> str:
     return f"{value:.1f} days"
 
 
+def format_filter_label(value: str) -> str:
+    """Make database values easier to scan in filter controls."""
+    return value.replace("_", " ").title()
+
+
 def validate_database() -> None:
     """Show a friendly message if the SQLite database is missing or incomplete."""
     if not DB_PATH.exists():
@@ -94,6 +99,80 @@ def read_sql(query: str) -> pd.DataFrame:
 def read_sql_file(filename: str) -> str:
     """Read a SQL file from the project sql folder."""
     return (SQL_DIR / filename).read_text(encoding="utf-8")
+
+
+@st.cache_data(show_spinner=False)
+def load_dashboard_dataset() -> pd.DataFrame:
+    """Load the joined work order, buyer, and payment dataset for filters."""
+    query = """
+    SELECT
+        w.work_order_id,
+        w.buyer_id,
+        w.provider_id,
+        w.category AS service_category,
+        w.work_order_title,
+        w.city,
+        w.state,
+        w.country,
+        w.priority,
+        w.status,
+        w.created_at,
+        w.assigned_at,
+        w.completed_at,
+        w.approved_at,
+        w.total_amount AS gross_work_order_value,
+        w.platform_fee AS platform_revenue,
+        w.provider_payout,
+        w.take_rate,
+        w.is_emergency,
+        b.company_name,
+        b.industry AS buyer_industry,
+        b.buyer_tier,
+        b.city AS buyer_city,
+        b.state AS buyer_state,
+        b.country AS buyer_country,
+        p.payment_id,
+        p.payment_status,
+        p.payment_method,
+        p.payment_due_date,
+        p.paid_at,
+        p.days_to_pay,
+        p.is_late
+    FROM work_orders w
+    LEFT JOIN buyers b
+        ON w.buyer_id = b.buyer_id
+    LEFT JOIN payments p
+        ON w.work_order_id = p.work_order_id;
+    """
+    dashboard_df = read_sql(query)
+
+    date_columns = [
+        "created_at",
+        "assigned_at",
+        "completed_at",
+        "approved_at",
+        "payment_due_date",
+        "paid_at",
+    ]
+    for column in date_columns:
+        dashboard_df[column] = pd.to_datetime(dashboard_df[column], errors="coerce")
+
+    money_columns = [
+        "gross_work_order_value",
+        "platform_revenue",
+        "provider_payout",
+        "take_rate",
+        "days_to_pay",
+    ]
+    for column in money_columns:
+        dashboard_df[column] = pd.to_numeric(dashboard_df[column], errors="coerce")
+
+    dashboard_df["payment_delay_days"] = (
+        dashboard_df["days_to_pay"].sub(30).clip(lower=0)
+    )
+    dashboard_df["created_month"] = dashboard_df["created_at"].dt.to_period("M").astype(str)
+
+    return dashboard_df
 
 
 @st.cache_data(show_spinner=False)
@@ -330,6 +409,263 @@ def render_header() -> None:
     )
 
 
+def get_filter_options(df: pd.DataFrame, column: str) -> list[str]:
+    """Return sorted, non-empty values for sidebar filters."""
+    values = df[column].dropna().astype(str)
+    return sorted(value for value in values.unique() if value.strip())
+
+
+def apply_dashboard_filters(df: pd.DataFrame) -> pd.DataFrame:
+    """Apply sidebar filters to the joined dashboard dataset."""
+    st.sidebar.header("Dashboard Filters")
+    st.sidebar.caption("Filters apply to the interactive section at the top.")
+
+    min_ts = df["created_at"].min()
+    max_ts = df["created_at"].max()
+    selected_date_range = None
+    if pd.notna(min_ts) and pd.notna(max_ts):
+        min_date = min_ts.date()
+        max_date = max_ts.date()
+        selected_date_range = st.sidebar.date_input(
+            "Created date range",
+            value=(min_date, max_date),
+            min_value=min_date,
+            max_value=max_date,
+        )
+
+    category_options = get_filter_options(df, "service_category")
+    status_options = get_filter_options(df, "status")
+    industry_options = get_filter_options(df, "buyer_industry")
+    country_options = get_filter_options(df, "country")
+
+    selected_categories = st.sidebar.multiselect(
+        "Service category",
+        options=category_options,
+        default=category_options,
+    )
+    selected_statuses = st.sidebar.multiselect(
+        "Work order status",
+        options=status_options,
+        default=status_options,
+        format_func=format_filter_label,
+    )
+    selected_industries = st.sidebar.multiselect(
+        "Buyer industry",
+        options=industry_options,
+        default=industry_options,
+    )
+    selected_countries = st.sidebar.multiselect(
+        "Country",
+        options=country_options,
+        default=country_options,
+    )
+
+    filtered_df = df.copy()
+
+    if isinstance(selected_date_range, tuple) and len(selected_date_range) == 2:
+        start_date, end_date = selected_date_range
+        filtered_df = filtered_df[
+            (filtered_df["created_at"].dt.date >= start_date)
+            & (filtered_df["created_at"].dt.date <= end_date)
+        ]
+
+    filtered_df = filtered_df[
+        filtered_df["service_category"].isin(selected_categories)
+        & filtered_df["status"].isin(selected_statuses)
+        & filtered_df["buyer_industry"].isin(selected_industries)
+        & filtered_df["country"].isin(selected_countries)
+    ]
+
+    return filtered_df
+
+
+def calculate_filtered_metrics(df: pd.DataFrame) -> dict[str, float]:
+    """Calculate KPI values for the filtered dashboard section."""
+    total_orders = len(df)
+    gross_value = df["gross_work_order_value"].sum()
+    platform_revenue = df["platform_revenue"].sum()
+    provider_payout = df["provider_payout"].sum()
+    successful_orders = df["status"].isin(["completed", "approved"]).sum()
+    cancelled_orders = (df["status"] == "cancelled").sum()
+
+    take_rate = platform_revenue * 100.0 / gross_value if gross_value else 0
+    success_rate = successful_orders * 100.0 / total_orders if total_orders else 0
+    cancellation_rate = cancelled_orders * 100.0 / total_orders if total_orders else 0
+    average_delay = df["payment_delay_days"].mean()
+
+    return {
+        "total_orders": total_orders,
+        "gross_value": gross_value,
+        "platform_revenue": platform_revenue,
+        "provider_payout": provider_payout,
+        "take_rate": take_rate,
+        "success_rate": success_rate,
+        "cancellation_rate": cancellation_rate,
+        "average_delay": average_delay,
+    }
+
+
+def render_filtered_kpi_cards(df: pd.DataFrame) -> None:
+    """Render KPI cards for the active filter selection."""
+    metrics = calculate_filtered_metrics(df)
+
+    first_row = st.columns(4)
+    first_row[0].metric("Filtered Work Orders", f"{metrics['total_orders']:,.0f}")
+    first_row[1].metric("Gross Work Order Value", format_currency(metrics["gross_value"]))
+    first_row[2].metric("Platform Revenue", format_currency(metrics["platform_revenue"]))
+    first_row[3].metric("Provider Payout", format_currency(metrics["provider_payout"]))
+
+    second_row = st.columns(4)
+    second_row[0].metric("Take Rate", format_percent(metrics["take_rate"]))
+    second_row[1].metric("Success Rate", format_percent(metrics["success_rate"]))
+    second_row[2].metric("Cancellation Rate", format_percent(metrics["cancellation_rate"]))
+    second_row[3].metric("Average Payment Delay", format_days(metrics["average_delay"]))
+
+
+def render_filtered_charts(df: pd.DataFrame) -> None:
+    """Render charts that respond to the sidebar filters."""
+    monthly_revenue = (
+        df.groupby("created_month", as_index=False)
+        .agg(
+            gross_work_order_value=("gross_work_order_value", "sum"),
+            platform_revenue=("platform_revenue", "sum"),
+            provider_payout=("provider_payout", "sum"),
+        )
+        .sort_values("created_month")
+    )
+    status_breakdown = (
+        df.groupby("status", as_index=False)
+        .agg(total_work_orders=("work_order_id", "count"))
+        .sort_values("total_work_orders", ascending=False)
+    )
+    category_revenue = (
+        df.groupby("service_category", as_index=False)
+        .agg(platform_revenue=("platform_revenue", "sum"))
+        .sort_values("platform_revenue", ascending=False)
+    )
+    top_buyers = (
+        df.groupby(["company_name", "buyer_industry"], as_index=False)
+        .agg(platform_revenue=("platform_revenue", "sum"))
+        .sort_values("platform_revenue", ascending=False)
+        .head(10)
+    )
+
+    st.subheader("Filtered Monthly Revenue Trend")
+    revenue_chart = px.line(
+        monthly_revenue,
+        x="created_month",
+        y=["gross_work_order_value", "platform_revenue", "provider_payout"],
+        markers=True,
+        title="Monthly Gross Value, Platform Revenue, and Provider Payout",
+        labels={
+            "created_month": "Created Month",
+            "value": "Amount",
+            "variable": "Metric",
+        },
+    )
+    revenue_chart.update_yaxes(tickprefix="$", separatethousands=True)
+    st.plotly_chart(apply_chart_style(revenue_chart), use_container_width=True)
+
+    left_col, right_col = st.columns(2)
+
+    with left_col:
+        st.subheader("Filtered Status Breakdown")
+        status_chart = px.pie(
+            status_breakdown,
+            names="status",
+            values="total_work_orders",
+            title="Work Orders by Status",
+            hole=0.45,
+        )
+        status_chart.update_traces(textposition="inside", textinfo="percent+label")
+        st.plotly_chart(apply_chart_style(status_chart), use_container_width=True)
+
+    with right_col:
+        st.subheader("Filtered Platform Revenue by Category")
+        category_chart = px.bar(
+            category_revenue,
+            x="service_category",
+            y="platform_revenue",
+            title="Platform Revenue by Service Category",
+            labels={
+                "service_category": "Service Category",
+                "platform_revenue": "Platform Revenue",
+            },
+        )
+        category_chart.update_yaxes(tickprefix="$", separatethousands=True)
+        st.plotly_chart(apply_chart_style(category_chart), use_container_width=True)
+
+    st.subheader("Filtered Top Buyers")
+    buyer_chart = px.bar(
+        top_buyers.sort_values("platform_revenue"),
+        x="platform_revenue",
+        y="company_name",
+        color="buyer_industry",
+        orientation="h",
+        title="Top 10 Buyers by Platform Revenue",
+        labels={
+            "platform_revenue": "Platform Revenue",
+            "company_name": "Buyer",
+            "buyer_industry": "Buyer Industry",
+        },
+    )
+    buyer_chart.update_xaxes(tickprefix="$", separatethousands=True)
+    st.plotly_chart(apply_chart_style(buyer_chart), use_container_width=True)
+
+
+def render_metric_glossary() -> None:
+    """Show short business definitions for dashboard metrics."""
+    with st.expander("Metric Glossary"):
+        st.markdown(
+            """
+            **Filtered Work Orders:** Count of work orders after sidebar filters are applied.
+
+            **Gross Work Order Value:** Total work order value before platform fees and provider payouts.
+
+            **Platform Revenue:** Fees retained by the marketplace.
+
+            **Provider Payout:** Amount passed through to service providers.
+
+            **Take Rate:** Platform revenue divided by gross work order value.
+
+            **Success Rate:** Share of filtered work orders with completed or approved status.
+
+            **Cancellation Rate:** Share of filtered work orders with cancelled status.
+
+            **Average Payment Delay:** Average days paid after the 30-day due window for settled payments.
+            """
+        )
+
+
+def render_csv_export(df: pd.DataFrame) -> None:
+    """Provide a CSV export for the current filtered dataset."""
+    csv_data = df.to_csv(index=False).encode("utf-8")
+    st.download_button(
+        label="Download filtered dataset as CSV",
+        data=csv_data,
+        file_name="fieldops_filtered_dashboard_dataset.csv",
+        mime="text/csv",
+    )
+
+
+def render_interactive_dashboard() -> None:
+    """Render the v0.7 interactive, filterable dashboard section."""
+    dashboard_df = load_dashboard_dataset()
+    filtered_df = apply_dashboard_filters(dashboard_df)
+
+    st.header("Interactive Dashboard")
+    st.caption("v0.7 filtered marketplace finance and work-order analytics")
+
+    if filtered_df.empty:
+        st.warning("No work orders match the current filters. Adjust the sidebar filters to continue.")
+        return
+
+    render_filtered_kpi_cards(filtered_df)
+    render_filtered_charts(filtered_df)
+    render_csv_export(filtered_df)
+    render_metric_glossary()
+
+
 def render_kpi_cards() -> None:
     overview = load_overview_metrics().iloc[0]
     payment = load_payment_metrics().iloc[0]
@@ -515,12 +851,23 @@ def render_business_insights() -> None:
     payment_delay = load_payment_delay_by_buyer()
     location_performance = load_location_performance()
 
+    st.subheader("Business Insights")
+
+    # payment_delay applies HAVING COUNT(*) >= 3, so it can be empty on small
+    # datasets even when the other tables have rows. Guard before .iloc[0].
+    if (
+        category_revenue.empty
+        or top_buyers.empty
+        or payment_delay.empty
+        or location_performance.empty
+    ):
+        st.info("Not enough data yet to generate written business insights.")
+        return
+
     top_category = category_revenue.iloc[0]
     top_buyer = top_buyers.iloc[0]
     riskiest_buyer = payment_delay.iloc[0]
     top_location = location_performance.iloc[0]
-
-    st.subheader("Business Insights")
     st.markdown(
         f"""
         **Marketplace scale:** The platform processed **{int(overview['total_work_orders']):,} work orders**
@@ -775,6 +1122,9 @@ def render_finance_deep_dive() -> None:
 def main() -> None:
     validate_database()
     render_header()
+
+    st.divider()
+    render_interactive_dashboard()
 
     st.divider()
     render_kpi_cards()

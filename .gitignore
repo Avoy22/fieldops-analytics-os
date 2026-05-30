@@ -27,3 +27,10 @@ Thumbs.db
 
 # VS Code
 .vscode/
+
+# Generated databases
+data/processed/*.db
+*.db
+
+# Generated report outputs
+reports/query_outputs/*.csv

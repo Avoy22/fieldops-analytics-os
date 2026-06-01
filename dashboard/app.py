@@ -10,6 +10,7 @@ streamlit run dashboard/app.py
 
 from pathlib import Path
 import sqlite3
+import sys
 
 import pandas as pd
 import plotly.express as px
@@ -17,8 +18,16 @@ import streamlit as st
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from src.bootstrap_data import ensure_database_exists
+
+
 DB_PATH = PROJECT_ROOT / "data" / "processed" / "fieldops.db"
 SQL_DIR = PROJECT_ROOT / "sql"
+
+ensure_database_exists(DB_PATH)
 
 REQUIRED_TABLES = {
     "buyers",

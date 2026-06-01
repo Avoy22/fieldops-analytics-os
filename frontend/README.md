@@ -1,73 +1,72 @@
-# React + TypeScript + Vite
+# FieldOps Analytics OS React Dashboard
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This folder contains the React TypeScript dashboard for FieldOps Analytics OS. It is a static Vite app that reads exported JSON from `public/data/`.
 
-Currently, two official plugins are available:
+## React Dashboard
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+The React dashboard does not use a backend or API yet. Vercel serves the app as static files, and the dashboard loads:
 
-## React Compiler
+- `public/data/dashboard-data.json`
+- `public/data/metadata.json`
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Keep both JSON files committed so the deployed dashboard has data available at build and runtime.
 
-## Expanding the ESLint configuration
+## Export Data
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+Run the exporter from the repository root after regenerating or refreshing the Python/SQLite analytics data:
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+python -m src.export_react_data
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+The exporter writes the static dashboard payloads to:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```text
+frontend/public/data/dashboard-data.json
+frontend/public/data/metadata.json
 ```
+
+Do not ignore `frontend/public/data/`; Vercel needs these files.
+
+## Run Locally
+
+Install frontend dependencies from this folder:
+
+```bash
+npm install
+```
+
+Start the local Vite dev server:
+
+```bash
+npm run dev
+```
+
+## Build
+
+Create a production build:
+
+```bash
+npm run build
+```
+
+Preview the production build locally:
+
+```bash
+npm run preview
+```
+
+The build output is generated in `dist/`. This folder should stay ignored because Vercel builds it during deployment.
+
+## Vercel Deployment Settings
+
+Use these settings when importing the GitHub repository into Vercel:
+
+```text
+Root Directory: frontend
+Framework Preset: Vite
+Build Command: npm run build
+Output Directory: dist
+```
+
+No backend, API route, or serverless function is required for v1.1.
